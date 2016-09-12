@@ -1,0 +1,4 @@
+---
+
+# On the kommandir node, type of cloud servicing for test nodes
+kommandir_cloud_type: "openstack"

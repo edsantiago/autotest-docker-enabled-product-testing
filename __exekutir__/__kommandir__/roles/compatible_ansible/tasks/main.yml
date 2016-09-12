@@ -1,0 +1,39 @@
+---
+
+# Depends:
+#   ansible_version: optional (new in 1.8)
+# Registers:
+#   result
+#   ansible_version.string
+
+- name: ansible --version output is captured
+  command: ansible --version
+  register: result
+  when: ansible_version is undefined
+
+- name: first line of result is split by spaces
+  set_fact:
+    result: "{{ result.stdout_lines[0].split(' ') }}"
+  when: ansible_version is undefined
+
+- name: second item in list is buffered
+  set_fact:
+    ansible_version:
+        string: "{{ result[1] }}"
+  when: ansible_version is undefined
+
+- name: ansible must be greater or equal to minimum version
+  fail:
+    msg: >
+        Incompatible ansible version {{ ansible_version.string }},
+        minimum is {{ compatible_ansible_minimum }}
+  when: compatible_ansible_minimum and
+        compatible_ansible_minimum | version_compare(ansible_version.string, '>=')
+
+- name: ansible must be less than maximum version
+  fail:
+    msg: |
+        Incompatible ansible version {{ ansible_version.string }},
+        maximum is {{ compatible_ansible_maximum }}
+  when: compatible_ansible_maximum and
+        compatible_ansible_maximum | version_compare(ansible_version.string, '<')

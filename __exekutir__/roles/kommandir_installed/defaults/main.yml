@@ -1,0 +1,63 @@
+---
+
+# Indexed by ansible_distribution
+#            ansible_distribution_major_version
+#            kommandir_cloud_type
+kommandir_repo_rpms:
+    CentOS:
+        "7":
+            openstack:
+                - epel-release
+                - https://rdoproject.org/repos/rdo-release.rpm
+
+kommandir_rpms:
+    CentOS:
+        "7":
+            # Full unittest + docs + devel compliment, just in case
+            openstack:
+                - rsync
+                - iproute
+                - hostname
+                - sed
+                - vim
+                - git
+                - gdb
+                - man
+                - man-db
+                - man-pages
+                - findutils
+                - python-bugzilla
+                - pylint
+                - python-pep8
+                - python2-mock
+                - python-sphinx
+                - python-unittest2
+                - docker
+                - atomic
+                - python-docutils
+                - python-sphinxcontrib-httpdomain
+                - python-sphinx_rtd_theme
+                - PyYAML
+                - ansible
+                - python-heatclient
+                - heat-cfntools
+                - python-dogpile-core
+                - python-swiftclient
+                - python-heatclient
+                - python-ironicclient
+                - python-troveclient
+                - python-neutronclient
+                - python-cinderclient
+                - python-glanceclient
+                - python-keystoneclient
+                - python-novaclient
+                - python-six
+                - python-ipaddress
+                - python-jsonpatch
+                - python-decorator
+                - python-munch
+                - python-keystoneauth1
+                - python-os-client-config
+                - python2-requestsexceptions
+                - python-netifaces
+                - python-openstackclient

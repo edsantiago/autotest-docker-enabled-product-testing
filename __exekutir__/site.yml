@@ -1,0 +1,9 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+- include: setup.yml
+- include: run.yml
+- include: cleanup.yml

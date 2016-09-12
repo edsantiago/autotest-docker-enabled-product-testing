@@ -1,0 +1,52 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+# Depends:
+#   workspace
+#   hostvars.executir.workspace
+#   executir_source (relative to workspace/cache)
+#   kommandir_dest  (relative to workspace/cache)
+#   git_details
+
+# N/B: kommandir might be the same node as executir
+
+- name: cache directory exists in kommandir's workspace
+  file:
+    path: "{{ workspace }}/cache"
+    state: directory
+
+- name: status of executir_source directory is known
+  stat:
+    follow: True
+    path: "{{ hostvars.executir.workspace }}/{{ executir_source }}"
+  delegate_to: executir
+  register: result
+
+- name: content checked out from git repo
+  git:
+    repo: "{{ git_details.repo }}"
+    dest: "{{ workspace }}/{{ kommandir_dest }}"
+    update: "{{ git_details.update | default(False) }}"
+    recursive: "{{ git_details.recursive | default(False) }}"
+  # executir source doesn't exist and git_details known
+  when: git_detauls is defined and
+        git_details.repo is defined and
+        (result.stat is undefined or
+         result.stat.exists is undefined or
+         not result.stat.exists or
+         not result.stat.isdir)
+  register: result
+
+# -- or --
+
+- name: content is synchronized from executir_source
+  synchronize:
+    delete: true
+    src: "{{ hostvars.executir.workspace }}/{{ executir_source }}/"
+    dest: "{{ workspace }}/{{ kommandir_dest }}/"
+  # executir_source exists, copy it to kommandir
+  when: result.ansible_job_id is undefined
+  register: result

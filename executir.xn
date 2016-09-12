@@ -1,0 +1,49 @@
+---
+# vim-syntax: yaml
+
+# Unique value, used for identifying and preventing clashes
+# over shared resources.  e.g. VMs, storage volumes, etc.
+- variable:
+    name: uuid
+    # Get value from current environment variable
+    # e.g. UUID=cevich_test_1 ./adept setup $(mktemp -d) adept.xn
+    from_env: UUID
+
+# Selects the cloud-related ansible group for the kommandir (and executir).
+# Should be 'localhost_kommandir' or 'nova_kommandir'
+# See __executir__/inventory/group_vars/$CLOUD_TYPE
+- variable:
+    name: cloud_type
+    # Get value from current environment variable
+    from_env: CLOUD_TYPE
+
+# Don't modify source
+- command:
+    filepath: /bin/cp
+    arguments: >
+        --target-directory=$WORKSPACE
+        --recursive
+        --archive
+        --update
+        --verbose
+        ${ADEPT_PATH}/__exekutir__/inventory
+
+# Older ansible doesn't support host/group vars in inventory directory
+- command:
+    filepath: /bin/bash
+    arguments: >
+        -c 'set -e;
+            HV="${ADEPT_PATH}/__exekutir__/host_vars";
+            GV="${ADEPT_PATH}/__exekutir__/group_vars";
+            rm -rf "${HV}" "${GV}";
+            ln -sf "${WORKSPACE}/inventory/host_vars" "${HV}";
+            ln -sf "${WORKSPACE}/inventory/group_vars" "${GV}";'
+
+# This is needed for older versions of ansible
+- variable:
+    name: ANSIBLE_CONFIG
+    value: "${ADEPT_PATH}/__exekutir__/ansible.cfg"
+
+- playbook:
+    filepath: "${ADEPT_PATH}/__exekutir__/${ADEPT_CONTEXT}.yml"
+    inventory: "${WORKSPACE}/inventory/hosts"

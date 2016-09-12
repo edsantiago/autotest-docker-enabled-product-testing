@@ -1,0 +1,25 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+- hosts: kommandir
+  tasks:
+    # in case recursive call breaks this play
+    - debug:
+        msg: "TODO: if possible sync. job workspace directory into to local results dir"
+      ignore_errors: True
+    - debug:
+        msg: "TODO: if possible recursivly call adept.py for __kommandir__/cleanup.yml"
+      ignore_errors: True
+    # in case recursive call successful
+    - debug:
+        msg: "TODO: if possible sync. job workspace directory into to local results dir"
+      ignore_errors: True
+
+# executir == localhost == primary/top-level adept.py caller
+- hosts: executir
+  roles:
+    - role: kommandir_destroyed
+      when: '"kommandir" in hostvars'

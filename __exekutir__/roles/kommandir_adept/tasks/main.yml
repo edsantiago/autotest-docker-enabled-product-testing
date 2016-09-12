@@ -1,0 +1,38 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+# Depends:
+#   adept_path
+#   workspace
+#   adept_context
+#   adept_optional (default empty)
+#   adept_file (default kommandir.xn)
+#   adept_timeout (default 30 minutes)
+# Registers:
+#   result
+
+- name: Remote adept commandline is formed
+  set_fact:
+    # No need clutter up namespace with temporary variables
+    result: "{{ adept_path }}/adept.py {{ adept_context }} {{ workspace }} {{ adept_file | default('kommandir.xn') {{ adept_optional | default('') }}"
+
+# This could take a while, use async + poll to avoid timeouts
+- name: adept command is executed on kommandir
+  command: "{{ result }}"
+  ignore_errors: True
+  register: result
+  async: "{{ adept_timeout | default(30) * 60 }}"
+  poll: 10
+
+- name: adept.py output is logged to kommandir_adept_CONTEXT.output
+  copy:
+    dest: "{{ workspace }}/kommandir_adept_{{ adept_context }}.output"
+    contents: "{{ result.stdout }}"
+
+- name: adept.py exit code is logged to kommandir_adept_CONTEXT.exit
+  copy:
+    dest: "{{ workspace }}/kommandir_adept_{{ adept_context }}.exit"
+    contents: "{{ result.rc }}"

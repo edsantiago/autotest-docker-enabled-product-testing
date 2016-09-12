@@ -1,0 +1,49 @@
+---
+
+# Depends:
+#   - inventory_hostname
+#   - wait_for_timeout
+#   - wait_for_port
+#   - port_listening (default started)
+#   - or_other_port (optional, if first check fails)
+
+- debug:
+    msg: 'Waiting for {{ inventory_hostname
+         }}:{{ wait_for_port }} to be {{ port_listening |
+         default("started") }}'
+
+- name: wait for port
+  become: False
+  wait_for:
+    host: '{{ inventory_hostname }}'
+    port: '{{ wait_for_port }}'
+    connect_timeout: 1
+    timeout: '{{ wait_for_timeout }}'
+    state: '{{ port_listening | default("started") }}'
+  ignore_errors: True
+  register: result
+  delegate_to: localhost
+
+- name: Second_chance flag set when or_other_port is set and wait_for failed
+  set_fact:
+    second_chance: True
+  when: result | failed and
+        or_other_port != "" and
+        or_other_port != []
+
+- name: wait for port
+  become: False
+  wait_for:
+    host: '{{ inventory_hostname }}'
+    port: '{{ or_other_port }}'
+    connect_timeout: 1
+    timeout: '{{ wait_for_timeout }}'
+    state: '{{ port_listening | default("started") }}'
+  ignore_errors: True
+  register: result
+  delegate_to: localhost
+  when: second_chance is defined and second_chance == True
+
+- fail:
+    msg: Failed to confirm port state
+  when: result | failed

@@ -1,0 +1,10 @@
+---
+
+# Default environment dictionary for execution of
+# all kommandir_discovery_commands.
+kommandir_discovery_environment: {}
+
+# This may contain any argument supported by the 'shell'
+# module, in addition to an optional 'environment' dictionary containing
+# any special environment variables to use only for that one command.
+kommandir_discovery_commands: []

@@ -1,0 +1,12 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+- hosts: kommandir
+  tasks:
+    - debug:
+        msg: "TODO: recursivly call adept.py for __kommandir__/run.yml"
+    - debug:
+        msg: "TODO: sync. remote workspace directory back to local workspace"

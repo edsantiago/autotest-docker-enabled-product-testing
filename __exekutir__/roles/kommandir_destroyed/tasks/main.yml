@@ -1,0 +1,90 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+# Depends:
+#   - ansible_version.string
+#   - kommandir_destruction_environment
+#   - kommandir_destruction_commands
+#   - host_vars_kommandir_path
+# Registers:
+#   - host_vars_kommandir_path_stat
+#   - result
+
+- name: status of host_vars_kommandir_path is known
+  stat:
+    path: "{{ host_vars_kommandir_path }}"
+  register: host_vars_kommandir_path_stat
+
+- debug:
+    msg: >
+        Warning: kommandir_destruction_commands undefined or empty.
+  when: kommandir_destruction_commands is undefined or
+        kommandir_destruction_commands == []
+
+# side-effect: result overwritten by this task
+- name: kommandir destruction commands are executed for ansible < 2.0
+  shell: "{{ item.1.command | mandatory }}"
+  environment: "{{ kommandir_destruction_environment }}"
+  args:
+    chdir: "{{ item.1.chdir | default(workspace) }}"
+    executable: "{{ item.1.executable | default(omit) }}"
+    creates: "{{ item.1.creates | default(omit) }}"
+    removes: "{{ item.1.removes | default(omit) }}"
+  # Don't fail entire play if destruction fails
+  ignore_errors: True
+  register: result
+  # Funky undefined checks needed for older ansible
+  when: |
+    ansible_version.string | version_compare("2.0", "<") and
+    kommandir_destruction_commands is defined and
+    host_vars_kommandir_path_stat.stat is defined and
+    host_vars_kommandir_path_stat.stat.exists is defined
+    host_vars_kommandir_path_stat.stat.exists
+  with_indexed_items: "{{ kommandir_destruction_commands | default([]) }}"
+
+- name: kommandir destruction commands are executed for ansible >= 2.0
+  shell: "{{ item.1.command | mandatory }}"
+  environment: "{{ kommandir_destruction_environment |
+                   combine( item.1.env | default({}) ) }}"
+  args:
+    chdir: "{{ item.1.chdir | default(omit) }}"
+    executable: "{{ item.1.executable | default(omit) }}"
+    creates: "{{ item.1.creates | default(omit) }}"
+    removes: "{{ item.1.removes | default(omit) }}"
+  # Don't fail entire play if destruction fails
+  ignore_errors: True
+  register: result
+  when: |
+    ansible_version.string | version_compare("2.0", ">=") and
+    kommandir_destruction_commands is defined and
+    host_vars_kommandir_path_stat.stat.exists
+  with_indexed_items: "{{ kommandir_destruction_commands | default([]) }}"
+
+- name: discovered kommandir host_vars are inactivated
+  replace:
+    dest: "{{ host_vars_kommandir_path }}"
+    follow: True
+    regexp: '^(.*)$'
+    # Funky comment to identify it came from here
+    replace: '#!#!# \1'
+  ignore_errors: True
+  when: host_vars_kommandir_path_stat.stat is defined and
+        host_vars_kommandir_path_stat.stat.exists is defined and
+        host_vars_kommandir_path_stat.stat.exists
+
+- name: kommandir removed from inventory file
+  replace:
+    dest: "{{ inventory_file | mandatory }}"
+    follow: True
+    regexp: "^(kommandir.*)$"
+    replace: '#!#!# \1'
+  ignore_errors: True
+
+# On the off-chance there are more plays after this one
+- name: inventory is refreshed for ansible >= 2.0
+  meta: refresh_inventory
+  ignore_errors: True
+  when: ansible_version.string | version_compare("2.0", ">=") and

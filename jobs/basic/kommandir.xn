@@ -1,0 +1,7 @@
+---
+# vim-syntax: yaml
+
+# WORKSPACE == ADEPT_PATH
+- playbook:
+    filepath: "${WORKSPACE}/${ADEPT_CONTEXT}.yml"
+    inventory: "${WORKSPACE}/inventory/hosts"

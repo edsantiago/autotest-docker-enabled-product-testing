@@ -1,0 +1,4 @@
+---
+
+compatible_ansible_minimum: 1.9
+compatible_ansible_maximum: []

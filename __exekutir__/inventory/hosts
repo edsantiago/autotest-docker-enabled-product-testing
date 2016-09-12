@@ -1,0 +1,6 @@
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+# Give localhost an alias in this context for playbook/role clarity
+executir ansible_connection=local ansible_become=false ansible_host=localhost ansible_ssh_host=localhost

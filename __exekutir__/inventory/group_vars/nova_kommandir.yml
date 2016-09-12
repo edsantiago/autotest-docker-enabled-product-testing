@@ -1,0 +1,22 @@
+---
+
+# FIXME: Probably needs to be $workspace/ssh_private_key or
+# adept.py hard-coding needs to change
+kommandir_ssh_key: "/host/root/.ssh/id_rsa"
+
+# Environment variables passed into each command
+kommandir_discovery_environment:
+    WORKSPACE: "{{ workspace }}"
+    OS_AUTH_URL: "{{ lookup('env','OS_AUTH_URL') }}"
+    OS_USERNAME: "{{ lookup('env','OS_USERNAME') }}"
+    OS_TENANT_NAME: "{{ lookup('env','OS_TENANT_NAME') }}"
+    OS_PASSWORD: "{{ lookup('env','OS_PASSWORD') }}"
+
+kommandir_discovery_commands:
+    - command: "nova --version > {{ workspace }}/nova_version"
+      creates: "{{ workspace }}/nova_version"
+    - command: "{{ playbook_dir }}/bin/nova_kommandir.sh {{ uuid | mandatory }}_kommandir {{ kommandir_ssh_key }}"
+      creates: "{{ host_vars_kommandir_path }}"
+
+kommandir_destruction_commands:
+    - command: "{{ playbook_dir }}/bin/nova_kommandir_destroy.sh {{ uuid | mandatory }}_kommandir"

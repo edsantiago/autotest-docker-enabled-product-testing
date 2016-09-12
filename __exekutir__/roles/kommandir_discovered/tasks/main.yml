@@ -1,0 +1,89 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+# Depends:
+#   - ansible_version.string
+#   - kommandir_discovery_environment
+#   - kommandir_discovery_commands
+#   - host_vars_kommandir_path
+# Registers:
+#   - host_vars_kommandir_path_stat
+#   - result
+
+- name: status of host_vars_kommandir_path is known
+  stat:
+    path: "{{ host_vars_kommandir_path }}"
+  register: host_vars_kommandir_path_stat
+
+# side-effect: result overwritten by this task
+- name: kommandir discovery commands are executed for ansible < 2.0
+  shell: "{{ item.1.command | mandatory }}"
+  environment: "{{ kommandir_discovery_environment }}"
+  args:
+    chdir: "{{ item.1.chdir | default(workspace) }}"
+    executable: "{{ item.1.executable | default(omit) }}"
+    creates: "{{ item.1.creates | default(omit) }}"
+    removes: "{{ item.1.removes | default(omit) }}"
+  register: result
+  # Funky undefined checks needed for older ansible
+  when: |
+    ansible_version.string | version_compare("2.0", "<") and
+    kommandir_discovery_commands is defined and
+    (host_vars_kommandir_path_stat.stat is undefined or
+     host_vars_kommandir_path_stat.stat.exists is undefined or
+     not host_vars_kommandir_path_stat.stat.exists)
+  with_indexed_items: "{{ kommandir_discovery_commands | default([]) }}"
+
+
+- name: kommandir discovery commands are executed for ansible >= 2.0
+  shell: "{{ item.1.command | mandatory }}"
+  environment: "{{ kommandir_discovery_environment |
+                   combine( item.1.env | default({}) ) }}"
+  args:
+    chdir: "{{ item.1.chdir | default(omit) }}"
+    executable: "{{ item.1.executable | default(omit) }}"
+    creates: "{{ item.1.creates | default(omit) }}"
+    removes: "{{ item.1.removes | default(omit) }}"
+  register: result
+  when: |
+    ansible_version.string | version_compare("2.0", ">=") and
+    kommandir_discovery_commands is defined and
+    not host_vars_kommandir_path_stat.stat.exists
+  with_indexed_items: "{{ kommandir_discovery_commands | default([]) }}"
+
+- debug:
+    msg: >
+        Warning: kommandir_discovery_commands undefined,
+        play will fail if inventory incomplete or if
+        {{ host_vars_kommandir_path }} does not exist.
+  when: kommandir_discovery_commands is undefined or
+        kommandir_discovery_commands == []
+
+- name: last kommandir_discovery_command is buffered
+  set_fact:
+    # No reason to store all the intermediate values
+    result: '{{ result.results | last }}'
+  when: result is defined and
+        result.results is defined and
+        result | success
+
+- name: last kommandir_discovery_command is parsed (ansible < 2.2)
+  set_fact:
+    result: '{{ result.stdout | from_yaml | to_nice_yaml }}'
+  when: not host_vars_kommandir_path_stat.stat.exists and
+        ansible_version.string | version_compare("2.2", "<")
+
+- name: last kommandir_discovery_command is parsed (ansible >= 2.2)
+  set_fact:
+    result: '{{ result.stdout | from_yaml | to_nice_yaml(indent=4) }}'
+  when: not host_vars_kommandir_path_stat.stat.exists and
+        ansible_version.string | version_compare("2.2", ">=")
+
+- name: last result converted to yaml and written into host_vars_kommandir_path
+  template:
+    src: yaml.j2
+    dest: "{{ host_vars_kommandir_path }}"
+  when: not host_vars_kommandir_path_stat.stat.exists

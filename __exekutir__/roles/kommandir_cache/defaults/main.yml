@@ -1,0 +1,8 @@
+---
+
+# Name of source/dest directory (relative to workspace/cache)
+executir_source:
+kommandir_dest:
+
+# Dictionary with key for 'repo' and optional keys for 'update' and 'recursive'
+git_details:

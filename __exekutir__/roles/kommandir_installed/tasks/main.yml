@@ -1,0 +1,30 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+# Depends:
+#   kommandir_cloud_type
+#   kommandir_repo_rpms
+#   timeout_minutes (optional, default 15)
+
+- fail:
+    msg: "TODO: Support for non-CentOS 7 Kommandir"
+  when: ansible_distribution != "CentOS" or
+        ansible_distribution_major_version != "7"
+
+- fail:
+    msg: "TODO: Support non-openstack kommandir_cloud_type"
+  when: kommandir_cloud_type != "openstack"
+
+# Workaround magic behavior changes before/after ansible 1.9.2 WRT urls
+- name: Repository rpms are installed with yum command
+  command: "yum install -y {{ item }}"
+  with_items: "{{ kommandir_repo_rpms[ansible_distribution][ansible_distribution_major_version][kommandir_cloud_type] }}"
+
+- name: System is updated and Rpm packages are installed
+  yum:
+    name: "*,{{ kommandir_rpms[ansible_distribution][ansible_distribution_major_version][kommandir_cloud_type] | join(',') }}"
+    state: latest
+  register: result

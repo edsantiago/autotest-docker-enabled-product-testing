@@ -1,0 +1,6 @@
+---
+
+dependencies:
+    - role: common
+    - role: compatible_ansible
+    - role: grouped

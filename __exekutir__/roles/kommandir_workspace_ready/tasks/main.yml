@@ -1,0 +1,89 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+# Depends:
+#   workspace
+# Registers:
+#   result
+
+# Assumed to be running on kommandir, might be same node as executir
+
+- name: workspace is a directory
+  file:
+    path: "{{ workspace }}"
+    state: directory
+
+- name: workspace contents are buffered
+  command: 'ls -1 "{{ workspace }}"'
+  register: result
+
+- name: workspace is empty
+  file:
+    path: '{{ workspace }}/{{ item }}'
+    state: absent
+  with_items: '{{ result.stdout_lines }}'
+
+- name: __kommandir__ playbook is synced to workspace
+  synchronize:
+    archive: true
+    dest: "{{ workspace }}"
+    src: "{{ hostvars.executir.adept_path }}/__executir__/__kommandir__"
+
+- name: jobs/job_name subdir in executir adept_path, is synced to workspace
+  synchronize:
+    archive: true
+    dest: "{{ workspace }}"
+    src: "{{ hostvars.executir.adept_path }}/jobs/{{ job_name }}"
+
+- name: workspace/ssh directory exists with correct permissions
+  file:
+    path: "{{ workspace }}/ssh"
+    mode: "0700"
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_id }}"
+    setype: "ssh_home_t"
+    state: directory
+
+- name: Status of ssh-key file is retrieved
+  stat:
+    path: "{{ workspace }}/ssh/id_rsa"
+  register: result
+
+- name: ssh-key is generated
+  shell: >
+        ssh-keygen -f "{{ workspace }}/ssh/id_rsa" \
+                   -q \
+                   -N ""
+  # stat + exists check required for older ansible versions
+  when: result.stat is defined and
+        (result.stat.exists is undefined or
+         result.stat.exists != True)
+
+# Hook for overriding variables during kommandir's ansible plays
+- name: status of executir workspace/variables.yml is known
+  stat:
+    path: "{{ hostvars.executir.workspace }}/variables.yml"
+  delegate_to: executir
+  register: result
+
+- name: variables.yml copied to workspace
+  copy:
+    dest: "{{ workspace }}/variables.yml"
+    src: "{{ hostvars.executir.workspace }}/variables.yml"
+  register: result
+  when: result.stat is defined and
+        result.stat.exists is defined and
+        result.stat.exists
+
+- name: remote variables.yml contains current uuid
+  lineinfile:
+    dest: "{{ workspace }}/variables.yml"
+    insertafter: EOF
+    line: "uuid: {{ uuid }}"
+    regexp: "^uuid:.*"
+    # kommandir's adept transition file assumes variables.yml exists
+    create: True
+    state: present

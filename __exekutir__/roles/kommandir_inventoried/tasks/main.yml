@@ -1,0 +1,49 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+# Depends:
+#   - host_vars_kommandir_path
+#   - ansible_version.string
+#   - inventory_file
+# Registers:
+#   - result
+#   - kommandir_name
+
+- name: kommandir's host_vars are loaded (ansible < 2.2)
+  set_fact:
+    result: "{{ lookup('file',host_vars_kommandir_path) | from_yaml }}"
+  when: ansible_version.string | version_compare("2.2", "<")
+
+- name: kommandir's host_vars are loaded (ansible >= 2.2)
+  include_vars:
+    file: "{{ host_vars_kommandir_path }}"
+    name: result
+  when: ansible_version.string | version_compare("2.2", ">=")
+
+- fail:
+    msg: "Neither ansible_host nor ansible_ssh_host are defined in {{ host_vars_kommandir_path }}"
+  when: result.ansible_host is undefined or
+        result.ansible_ssh_host is undefined
+
+- name: kommandir added to inventory hosts file
+  lineinfile:
+    backup: False
+    dest: "{{ inventory_file | mandatory }}"
+    line: >
+        kommandir
+        {%- for k,v in result.iteritems() %}
+            {%- if k != 'inventory_hostname' %} {{k}}={{v}}
+            {%- endif %}
+        {%- endfor %}
+    regexp: "^kommandir.*"
+    # Notice problem if inventory hosts file doesn't exist
+    create: False
+
+# FIXME: This makes ansible mad and will break on 2.2+
+- name: runtime inventory is updated
+  add_host:
+    name: "kommandir"
+  args: "{{ result }}"

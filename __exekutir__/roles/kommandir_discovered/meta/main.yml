@@ -1,0 +1,8 @@
+---
+
+dependencies:
+    - role: common
+    - role: compatible_ansible
+    - role: grouped
+      dynamic_groups:
+        - "{{ cloud_type }}"

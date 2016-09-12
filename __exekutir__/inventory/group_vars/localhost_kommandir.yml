@@ -1,0 +1,23 @@
+---
+
+# Environment dictionary for execution of kommandir_discovery_commands.
+kommandir_discovery_environment:
+    KMNDRYML: "localhost_kommandir.yml"
+    WORKSPACE: "{{ workspace }}"
+
+# Use the localhost as the kommandir node.
+kommandir_discovery_commands:
+    - chdir: "{{ workspace }}"
+      creates: "{{ workspace }}/{{ kommandir_discovery_environment.KMNDRYML }}"
+      command: |
+        cat << EOF > "$WORKSPACE/$KMNDRYML"
+        ---
+        inventory_hostname: kommandir
+        ansible_host: 127.0.0.1
+        ansible_ssh_host: 127.0.0.1
+        ansible_connection: local
+        ansible_become: False
+        EOF
+    - chdir: "{{ workspace }}"
+      command: cat "$WORKSPACE/$KMNDRYML" && rm -f "{{ workspace }}/{{ kommandir_discovery_environment.KMNDRYML }}"
+      removes: "{{ workspace }}/{{ kommandir_discovery_environment.KMNDRYML }}"

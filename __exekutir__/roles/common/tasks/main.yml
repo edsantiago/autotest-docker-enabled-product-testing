@@ -1,0 +1,146 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+# Depends:
+# Registers:
+#   - workspace
+#   - result
+
+# N/B: executir == localhost == primary/top-level adept.py caller
+
+# N/B: Role applied to both executir AND kommandir (may/may not be the same).
+
+- name: result variable always starts out as an empty list
+  set_fact:
+    result: []
+
+- name: WORKSPACE environment variable is buffered for executir
+  set_fact:
+    result: "{{ lookup('env', 'WORKSPACE') }}"
+  when: inventory_hostname == 'executir' and
+        (workspace is undefined or
+         not workspace)
+
+# This allows running with an empty ('') workspace, and/or running
+# ansible-playbook directly (outside of adept.py).
+- name: workspace defined from temporary directory for executir
+  set_fact:
+    workspace: "{{ lookup('pipe',
+                          '/usr/bin/mktemp --directory -t workspace.XXXXXXXX') }}"
+  # Empty AND undefined env. vars are both == ''
+  when: inventory_hostname == 'executir' and
+        result == ''
+
+- name: workspace defined from env. var.
+  set_fact:
+    # result from a few tasks up
+    workspace: "{{ result }}"
+  # Env. var was used instead of mktemp (above) because
+  # result is NOT sentinel (empty list)
+  when: workspace is undefined and
+        result != []
+
+# On the off-chance multiple runs happen on the same kommandir and
+# with the same user, prevent collisons by using a unique workspace
+# for the entire run.
+- name: temporary directory workspace created on kommandir
+  shell: /usr/bin/mktemp --directory --tmpdir=$HOME -t kommandir.XXXXXXXX
+  register: result
+  when: inventory_hostname == 'kommandir' and
+        workspace is undefined
+
+- name: workspace defined for kommandir
+  set_fact:
+    workspace: "{{ result.stdout_lines[0] }}"
+  # Assume result.stdout_lines is undefined when workspace is also undefined
+  when: inventory_hostname == 'kommandir' and
+        result.stdout_lines is defined
+
+- debug: var=workspace
+
+- name: The host_vars file for kommandir is set on executir
+  set_fact:
+    host_vars_kommandir_path: "{{ inventory_dir }}/host_vars/kommandir.yml"
+  when: inventory_hostname == 'executir' and
+        host_vars_kommandir_path is undefined
+
+# Set automatically by adept.py
+- name: The adept_path variable is defined from env. var. on executir
+  set_fact:
+    adept_path: "{{ lookup('env','ADEPT_PATH') }}"
+  when: inventory_hostname == 'executir' and
+        adept_path is undefined
+
+# Manual ansible-playbook run? Make best guess
+- name: The adept_path variable is defined as parent to playbook_dir on executir
+  set_fact:
+    adept_path: "{{ playbook_dir }}/.."
+  when: inventory_hostname == 'executir' and
+        adept_path is undefined
+
+# Another role will copy it
+- name: The adept_path variable is defined as parent of workspace on kommandir
+  set_fact:
+    adept_path: "{{ workspace }}/../"
+  when: inventory_hostname == 'kommandir'
+
+- debug: var=adept_path
+
+# Allows running w/o specifying a UUID
+# Last 12 nibbles of UUID have more variability
+- name: The uuid variable is defined and non-empty for executir
+  set_fact:
+    uuid: "{{ [ansible_date_time, ansible_default_ipv4] |
+              to_uuid | reverse | truncate(12,True,'') }}"
+  when: inventory_hostname == 'executir' and
+        (uuid is undefined or not uuid)
+
+- name: uuid variable is common among all other hosts
+  set_fact:
+    uuid: "{{ hostvars.executir.uuid }}"
+  when: inventory_hostname != 'executir'
+
+- debug: var=uuid
+
+- name: ansible --version output is captured
+  command: ansible --version
+  register: result
+  # Not defined for older ansible versions
+  when: ansible_version is undefined or
+        ansible_version.string is undefined
+
+- name: first line of result is split by spaces
+  set_fact:
+    result: "{{ result.stdout_lines[0].split(' ') }}"
+  when: ansible_version is undefined or
+        ansible_version.string is undefined
+
+- name: second item in list is buffered
+  set_fact:
+    ansible_version:
+        string: "{{ result[1] }}"
+  when: ansible_version is undefined or
+        ansible_version.string is undefined
+
+- name: ansible version written to workspace/ansible_version
+  copy:
+    dest: "{{ workspace }}/ansible_version"
+    content: "{{ ansible_version.string }}"
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: System's hostvars written to hostvars_destination (ansible < 2.2)
+  delegate_to: executir
+  copy:
+    dest: "{{ inventory_dir }}/host_vars/{{ inventory_hostname }}.yml"
+    content: "{{ hostvars[inventory_hostname] | to_nice_yaml }}"
+  when: ansible_version.string | version_compare("2.2", "<")
+
+- name: System's hostvars written to hostvars_destination (ansible >= 2.2)
+  delegate_to: executir
+  copy:
+    dest: "{{ inventory_dir }}/host_vars/{{ inventory_hostname }}.yml"
+    content: "{{ hostvars[inventory_hostname] | to_nice_yaml(indent=4) }}"
+  when: ansible_version.string | version_compare("2.2", ">=")

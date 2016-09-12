@@ -1,0 +1,58 @@
+---
+
+################################################################
+# N/B: This may be running on an old (1.9x) version of ansible #
+################################################################
+
+# executir == localhost == primary/top-level adept.py caller
+
+- hosts: executir
+  roles:
+    # N/B: Role dependencies in use!
+    - role: kommandir_inventoried
+      when: '"kommandir" not in hostvars'
+
+    - role: hostup
+      inventory_hostname: "{{ hostvars.kommandir.ansible_host }}"
+      # Be extra patient in case of reboot
+      wait_for_port: "{{ hostvars.kommandir.ansible_port | default(22) }}"
+      wait_for_timeout: 30
+      when: hostvars.kommandir.ansible_host is defined and
+            hostvars.kommandir.ansible_ssh_host is undefined and
+            hostvars.kommandir.ansible_connection != 'local'
+
+    - role: hostup
+      inventory_hostname: "{{ hostvars.kommandir.ansible_ssh_host }}"
+      # Be extra patient in case of reboot
+      wait_for_port: "{{ hostvars.kommandir.ansible_port | default(22) }}"
+      wait_for_timeout: 30
+      when: hostvars.kommandir.ansible_host is undefined and
+            hostvars.kommandir.ansible_ssh_host is defined and
+            hostvars.kommandir.ansible_connection != 'local'
+
+# N/B: kommandir might be the same node as executir
+
+- hosts: kommandir
+  vars:
+    # Allows overriding from command-line
+    autotest_git_details:
+        repo: "https://github.com/autotest/autotest.git"
+        recursive: False
+    autotest_docker_git_details:
+        repo: "https://github.com/autotest/autotest-docker.git"
+        recursive: True
+
+  roles:
+    # N/B: Role dependencies in use!
+    - role: kommandir_cache
+      executir_source: "autotest"
+      git_details: "{{ autotest_git_details }}"
+
+    - role: kommandir_cache
+      executir_source: "autotest-docker"
+      git_details: "{{ autotest_docker_git_details }}"
+
+    - async_complete
+
+    - role: kommandir_adept
+      when: not stonetouched
